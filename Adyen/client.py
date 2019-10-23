@@ -93,7 +93,7 @@ class AdyenClient(object):
         self.http_force = http_force
         self.live_endpoint_prefix = live_endpoint_prefix
 
-    def _determine_api_url(self, platform, service, action):
+    def _determine_api_url(self, platform, service, action, api_version=None):
         """This returns the Adyen API endpoint based on the provided platform,
         service and action.
 
@@ -103,7 +103,9 @@ class AdyenClient(object):
             action (str): the API action to perform.
         """
         base_uri = settings.BASE_PAL_URL.format(platform)
-        if service == "Recurring":
+        if api_version is not None:
+            pass
+        elif service == "Recurring":
             api_version = settings.API_RECURRING_VERSION
         elif service == "Payout":
             api_version = settings.API_PAYOUT_VERSION
@@ -193,7 +195,7 @@ class AdyenClient(object):
         'Adyen.store_payout_password = 'Your payout password'"""
         raise AdyenInvalidRequestError(errorstring)
 
-    def call_api(self, request_data, service, action, idempotency=False,
+    def call_api(self, request_data, service, action, idempotency=False, api_version=None,
                  **kwargs):
         """This will call the adyen api. username, password, merchant_account,
         and platform are pulled from root module level and or self object.
@@ -301,7 +303,7 @@ class AdyenClient(object):
         if idempotency:
             headers['Pragma'] = 'process-retry'
 
-        url = self._determine_api_url(platform, service, action)
+        url = self._determine_api_url(platform, service, action, api_version=api_version)
 
         if xapikey:
             raw_response, raw_request, status_code, headers = \
