@@ -5,7 +5,7 @@ from __future__ import absolute_import, division, unicode_literals
 import json as json_lib
 import re
 
-from . import util, settings
+from . import settings, util
 from .httpclient import HTTPClient
 from .exceptions import (
     AdyenAPICommunicationError,
