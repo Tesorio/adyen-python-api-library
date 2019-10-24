@@ -5,8 +5,7 @@ from __future__ import absolute_import, division, unicode_literals
 import json as json_lib
 import re
 
-from . import util
-from .settings import AdyenClientSettings
+from . import util, settings
 from .httpclient import HTTPClient
 from .exceptions import (
     AdyenAPICommunicationError,
@@ -73,7 +72,7 @@ class AdyenClient(object):
                  platform="test", merchant_account=None,
                  merchant_specific_url=None, skin_code=None,
                  hmac=None, app_name="",
-                 http_force=None, live_endpoint_prefix=None, settings=None):
+                 http_force=None, live_endpoint_prefix=None, settings=settings):
         self.username = username
         self.password = password
         self.xapikey = xapikey
@@ -88,7 +87,7 @@ class AdyenClient(object):
         self.skin_code = skin_code
         self.psp_list = []
         self.app_name = app_name
-        self.settings = settings if settings else AdyenClientSettings
+        self.settings = settings
         self.LIB_VERSION = self.settings.LIB_VERSION
         self.USER_AGENT_SUFFIX = self.settings.LIB_NAME + "/"
         self.http_init = False
