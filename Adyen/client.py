@@ -6,6 +6,7 @@ import json as json_lib
 import re
 
 from . import util
+from .settings import AdyenClientSettings
 from .httpclient import HTTPClient
 from .exceptions import (
     AdyenAPICommunicationError,
@@ -16,7 +17,7 @@ from .exceptions import (
     AdyenAPIInvalidFormat,
     AdyenAPIInvalidAmount,
     AdyenEndpointInvalidFormat)
-from . import settings
+
 
 
 class AdyenResult(object):
@@ -72,7 +73,7 @@ class AdyenClient(object):
                  platform="test", merchant_account=None,
                  merchant_specific_url=None, skin_code=None,
                  hmac=None, app_name="",
-                 http_force=None, live_endpoint_prefix=None):
+                 http_force=None, live_endpoint_prefix=None, settings=None):
         self.username = username
         self.password = password
         self.xapikey = xapikey
@@ -87,13 +88,14 @@ class AdyenClient(object):
         self.skin_code = skin_code
         self.psp_list = []
         self.app_name = app_name
-        self.LIB_VERSION = settings.LIB_VERSION
-        self.USER_AGENT_SUFFIX = settings.LIB_NAME + "/"
+        self.settings = settings if settings else AdyenClientSettings
+        self.LIB_VERSION = self.settings.LIB_VERSION
+        self.USER_AGENT_SUFFIX = self.settings.LIB_NAME + "/"
         self.http_init = False
         self.http_force = http_force
         self.live_endpoint_prefix = live_endpoint_prefix
 
-    def _determine_api_url(self, platform, service, action, api_version=None):
+    def _determine_api_url(self, platform, service, action):
         """This returns the Adyen API endpoint based on the provided platform,
         service and action.
 
@@ -102,15 +104,15 @@ class AdyenClient(object):
             service (str): API service to place request through.
             action (str): the API action to perform.
         """
-        base_uri = settings.BASE_PAL_URL.format(platform)
-        if api_version is not None:
-            pass
-        elif service == "Recurring":
-            api_version = settings.API_RECURRING_VERSION
+        base_uri = self.settings.BASE_PAL_URL.format(platform)
+        if service == "Recurring":
+            api_version = self.settings.API_RECURRING_VERSION
         elif service == "Payout":
-            api_version = settings.API_PAYOUT_VERSION
+            api_version = self.settings.API_PAYOUT_VERSION
+        elif service == 'BinLookup':
+            api_version = self.settings.API_BIN_LOOKUP_VERSION
         else:
-            api_version = settings.API_PAYMENT_VERSION
+            api_version = self.settings.API_PAYMENT_VERSION
         return '/'.join([base_uri, service, api_version, action])
 
     def _determine_hpp_url(self, platform, action):
@@ -122,7 +124,7 @@ class AdyenClient(object):
             action (str):   the HPP action to perform.
             possible actions: select, pay, skipDetails, directory
         """
-        base_uri = settings.BASE_HPP_URL.format(platform)
+        base_uri = self.settings.BASE_HPP_URL.format(platform)
         service = action + '.shtml'
         result = '/'.join([base_uri, service])
         return result
@@ -135,11 +137,11 @@ class AdyenClient(object):
             platform (str): Adyen platform, ie 'live' or 'test'.
             action (str): the API action to perform.
         """
-        api_version = settings.API_CHECKOUT_VERSION
+        api_version = self.settings.API_CHECKOUT_VERSION
         if platform == "test":
-            base_uri = settings.ENDPOINT_CHECKOUT_TEST
+            base_uri = self.settings.ENDPOINT_CHECKOUT_TEST
         elif self.live_endpoint_prefix is not None and platform == "live":
-            base_uri = settings.ENDPOINT_CHECKOUT_LIVE_SUFFIX.format(
+            base_uri = self.settings.ENDPOINT_CHECKOUT_LIVE_SUFFIX.format(
                 self.live_endpoint_prefix)
         elif self.live_endpoint_prefix is None and platform == "live":
             errorstring = """Please set your live suffix. You can set it
@@ -151,7 +153,7 @@ class AdyenClient(object):
         if action == "paymentsResult":
             action = "payments/result"
         if action == "originKeys":
-            api_version = settings.API_CHECKOUT_UTILITY_VERSION
+            api_version = self.settings.API_CHECKOUT_UTILITY_VERSION
 
         return '/'.join([base_uri, api_version, action])
 
@@ -195,7 +197,7 @@ class AdyenClient(object):
         'Adyen.store_payout_password = 'Your payout password'"""
         raise AdyenInvalidRequestError(errorstring)
 
-    def call_api(self, request_data, service, action, idempotency=False, api_version=None,
+    def call_api(self, request_data, service, action, idempotency=False,
                  **kwargs):
         """This will call the adyen api. username, password, merchant_account,
         and platform are pulled from root module level and or self object.
@@ -293,8 +295,8 @@ class AdyenClient(object):
         # Add application info
         request_data['applicationInfo'] = {
             "adyenLibrary": {
-                "name": settings.LIB_NAME,
-                "version": settings.LIB_VERSION
+                "name": self.settings.LIB_NAME,
+                "version": self.settings.LIB_VERSION
             }
         }
         # Adyen requires this header to be set and uses the combination of
@@ -303,7 +305,7 @@ class AdyenClient(object):
         if idempotency:
             headers['Pragma'] = 'process-retry'
 
-        url = self._determine_api_url(platform, service, action, api_version=api_version)
+        url = self._determine_api_url(platform, service, action)
 
         if xapikey:
             raw_response, raw_request, status_code, headers = \
@@ -447,8 +449,8 @@ class AdyenClient(object):
 
         request_data['applicationInfo'] = {
             "adyenLibrary": {
-                "name": settings.LIB_NAME,
-                "version": settings.LIB_VERSION
+                "name": self.settings.LIB_NAME,
+                "version": self.settings.LIB_VERSION
             }
         }
         # Adyen requires this header to be set and uses the combination of
